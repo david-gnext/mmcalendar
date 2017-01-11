@@ -1,0 +1,258 @@
+<script src="jquery.js"></script>
+<script src="moment.js"></script>
+<script type="text/javascript" src="jquery-ui.js"></script>
+<link rel="stylesheet" type="text/css" href="dialog.css">
+<link rel="stylesheet" type="text/css" href="jquery-ui.css">
+<script src="https://apis.google.com/js/api.js"></script>
+<script src="fullcalendar.js"></script>
+<link rel="stylesheet" href="fullcalendar.css">
+<style type="text/css">
+  #info_box {
+    color : #fff;
+    margin-top: 20px;    
+    border-top: 1px solid #fff;        
+    padding: 0 auto;
+    width: 300px;
+    height: auto;
+    background: #3a87ad;
+    box-shadow: 10px 10px 5px #888888;
+    position: absolute;
+    z-index: 9;
+      }  
+  #info_box > * {
+    padding : 0 5%;
+  }
+</style>
+<script src="gcal.js"></script>
+<script src="gg.js"></script>
+<body>
+  <div id="calendar"></div>
+  <script type='text/javascript'>
+
+
+$(document).ready( function() {
+  function onLoadFn() {
+  gapi.client.setApiKey("AIzaSyCrp1DS_Wm1honWgobnY-kl85jqeVYFkR8");
+  checkAuth();
+}
+gapi.load("client", onLoadFn);
+//Global variables to access the calendar
+     clientId = '1061289256628-nl7tm7h0uthjbn46sodeb7e98051m07g.apps.googleusercontent.com',
+     scopes = 'https://www.googleapis.com/auth/calendar',
+     calendarId = 'david.gnext@gmail.com',
+     eventsList = [];
+
+
+//Autorice the user
+
+
+      //authorization in google
+      function checkAuth() {
+         gapi.auth.authorize(
+            {
+               'client_id': clientId,
+               'scope': scopes,
+               'immediate': true
+            }, handleAuthResult);
+      }
+
+      //checks if authorized
+      function handleAuthResult(authResult) {
+
+         if (authResult && !authResult.error) {
+            loadCalendarApi();
+         } else {
+            handleAuthClick();
+         }
+      }
+
+      //request credentials
+      function handleAuthClick() {
+         gapi.auth.authorize(
+            {
+               client_id: clientId,
+               scope: scopes,
+               immediate: false
+            }, handleAuthResult);
+         return false;
+      }
+
+     function loadCalendarApi() {
+         gapi.client.load('calendar', 'v3', makeApiCall);
+      }
+
+function makeApiCall() {
+
+         requestList = gapi.client.calendar.events.list({
+            'calendarId': calendarId
+         });
+
+         console.log('--- eventsList ---');
+         if (eventsList.length > 0) {
+          $("#calendar").remove();
+           eventsList = [];
+          $("body").append('<div id="calendar" calendar="myCalendar"></div>');
+         }
+         // Step 6: Execute the API request
+         requestList
+            .then(function (resp) {
+              
+               if (resp.result.error) {
+
+                  reportError('Google Calendar API: ' + data.error.message, data.error.errors);
+
+               } else if (resp.result.items) {
+
+                  resp.result.items.forEach(function (entry, index) {                   
+                     eventsList.push({
+                        id: entry.id,
+                        name : entry.creator.displayName,
+                        email : entry.creator.email,
+                        url: entry.htmlLink,
+                        title: entry.summary,
+                        start: entry.start.dateTime || entry.start.date, // try timed. will fall back to all-day
+                        end: entry.end.dateTime || entry.end.date, // same                        
+                        location: entry.location,
+                        description : entry.description
+                     });
+                  });
+
+               }
+               
+               if (eventsList.length > 0) {
+                  $("#calendar").fullCalendar({
+                      googleCalendarApiKey: 'AIzaSyCrp1DS_Wm1honWgobnY-kl85jqeVYFkR8',
+                      events : eventsList,
+                      editable : true,
+                      selectable : true,
+                      eventMouseover : function(data) {
+                         var content = '<h3>'+data.title+'</h3>' + 
+                            '<p><b>Start:</b> '+data.start.format()+'</p>'+
+                            (data.end && '<p><b>End:</b> '+data.end.format()+'</p>' || '')+
+                            (data.name && '<p><b>Name:</b> '+data.name+'</p>' || '')+
+                            (data.email && '<p><b>End:</b> '+data.email+'</p>' || '');
+                 $("body").append("<div id='info_box'>"+content+"</div>");
+                 $("#info_box").css({top:$(this).offset().top,left:$(this).offset().left});
+                      },
+                      eventMouseout : function(){
+                        $("#info_box").remove();
+                      },
+                      eventClick: function(event) {  
+                        // opens events in a popup window                        
+                        window.open(event.url, 'gcalevent', 'width=700,height=600');
+                        return false;
+                      },
+                      select : function(s,e){
+                        var sd = full_Calendar.ISODateString(s._d),
+                        ed = full_Calendar.ISODateString(e._d),resource; 
+                        if ($("#dia").hasClass('ui-dialog-content')) {
+                          $("#dia").dialog("open");
+                        }
+                        else{
+                          $("#dia").dialog({
+                              height: 400,
+                              width: 350,
+                              modal: true,
+                                 async: false,
+                cache: false,
+                              title : "Creating Google Event",
+                              resizable: true,
+                              close : function(){
+                                $("#dia").dialog("close");
+                                $("#dia input[type=text]").val("");
+                              }
+                          });
+                          $("#dia").dialog("open");
+                        }
+                        $("#btn_event_create").unbind().bind("click",function(){
+                            resource  = full_Calendar.getEventData(sd,ed);
+                            $("#dia").dialog("close");
+                            makeRpcRequest(resource);                            
+                        });                        
+                      },
+                      eventDrop : function( event, jsEvent, ui, view ) { 
+                       var getTZ = event.start._i;    
+                       var TZ = getTZ.substr(getTZ.indexOf("+")); //timeZone               
+                       var resouce;                                                    
+                       for(var i in event.source.events){
+                          console.log(event.source.events[i]);
+                          if(event.source.events[i].id == event._id){
+                            resource = {
+                            //"id" : event._id, reqired in update
+                            "summary": event.source.events[i].title,
+                            "description" : event.description,
+                            "location": event.location,
+                            "start": {'dateTime' : event.start.format()+TZ},
+                            "end": {'dateTime' : event.end.format()+TZ}
+                           };   
+                          }                          
+                        }                        
+                     makeRpcRequest(resource);
+                     }
+                    });
+               }
+               full_Calendar.MMholiday();
+            }, function (reason) {
+               console.log('Error: ' + reason.result.error.message);
+            });           
+      }
+//insert into calendar
+
+
+
+      function makeRpcRequest(eventData) {
+
+
+         gapi
+            .client
+            .load('calendar', 'v3')
+            .then(function () {
+               // request = gapi.client.calendar.events.update({
+               //    'calendarId': calendarId,
+               //    'resource': eventData,
+               //    "eventId" : eventData.id
+               // });
+               //   insert event
+                request = gapi.client.calendar.events.insert({
+                  'calendarId': calendarId,
+                  'resource': eventData,
+                  "supportsAttachments" : true
+               });
+               request.then(function (resp) {
+
+                  if (resp.result.error) {
+                     reportError('Google Calendar API: ' + data.error.message, data.error.errors);
+                  } else {
+
+                      makeApiCall();
+                     alert(resp);
+                     var creator = resp.result.creator.email;
+                     var calendarEntry = resp.result.htmlLink;
+
+                     console.log('--- Calendar entry successfully created by---');
+                     console.log(creator);
+                     console.log('--- dd ---');
+                     console.log(calendarEntry);
+                  }
+               }, function (reason) {
+                  console.log('Error: ' + reason.result.error.message);
+
+               });
+            });
+      }    
+});
+</script>
+<!-- Creat event box -->
+<div id="dia" style="display:none;">
+<form>
+<div> Summary <input type="text" name="sum"></div>
+<div> Description <input type="text" name="desc"></div>
+<div> Location <input type="text" name="loc"></div>
+<div> Creator Email <input type="text" name="email"></div>
+<div>  <input type="button" onclick="window.open('https://drive.google.com', 'gcalevent', 'width=700,height=600');" value="Drive File Id"></div>
+<div> Attach File <input type="text" name="file"></div>
+<br><br>
+<div><center><input type="button" id="btn_event_create" value="Submit"></center></div>
+</form>
+</div>
+</body>
