@@ -8,6 +8,11 @@ Myanmar calendar google Api with fullcalendar.js
 # index.html (***ဒီဖိုင္ရဲ႕ေအာက္ေဖာ္ၿပပါလုိင္းနံပါတ္မွာေၿပာင္းေပးပါ***)
 ```Javascript
 
+33: $(document).ready( function() {
+34:  function onLoadFn() {
+35:  gapi.client.setApiKey("your api key");
+36:  checkAuth();
+37: }
 38:  gapi.load("client", onLoadFn);
 39://Global variables to access the calendar
 40:     clientId = 'your client Id',
